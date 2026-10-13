@@ -1,0 +1,75 @@
+# subs-check 配置 — 跑一轮就退出（由 GitHub Actions 调度，不长驻，解决"几天不重启就不更新"）
+# 输出推到 secret Gist，Gist 删除/重建 = 总开关
+print-progress: false
+
+concurrent: 80
+media-concurrent: 30
+speed-concurrent: 20
+shuffle-test-order: true
+
+# Actions 上跑完一轮就被 kill，这个值只是防止它自己无限循环
+check-interval: 1440
+
+# 最多保留多少个可用节点
+success-limit: 150
+
+timeout: 5000
+alive-test-url: http://gstatic.com/generate_204
+speed-test-url: https://github.com/AaronFeng753/Waifu2x-Extension-GUI/releases/download/v2.21.12/Waifu2x-Extension-GUI-v2.21.12-Portable.7z
+# 低于 1MB/s 的免费节点看直播没意义，直接丢
+min-speed: 1024
+download-timeout: 10
+download-mb: 20
+total-speed-limit: 0
+
+listen-port: ":8199"
+rename-node: true
+node-prefix: ""
+
+# 按 IP 归属地重命名后，App 端按名字里的国家/地区分组（HK/TW/SG/US/JP）
+# 这里不按地区过滤，全保留，让 App 端分流
+filter: []
+
+# 流媒体检测：注意 subs-check 只检测 iprisk/tiktok/youtube/netflix/disney/openai/gemini/claude/spotify
+# 它【不检测 TVB/ViuTV】——港台频道靠 rename-node 出来的 HK/TW 地区标签做地理分流
+media-check: true
+media-check-timeout: 8
+platforms:
+  - iprisk
+  - youtube
+  - netflix
+  - disney
+
+# 上一轮可用节点下一轮重新测，缓解"节点更新不及时"
+keep-days: 7
+
+output-dir: "output"
+enable-web-ui: false
+sub-store-port: ""
+
+# 保存方法：secret Gist（token 由 Actions 运行时注入，不入库）
+save-method: gist
+github-gist-id: ""
+github-gist-token: ""
+
+sub-urls:
+  - "https://raw.githubusercontent.com/firefoxmmx2/v2rayshare_subcription/main/subscription/clash_sub.yaml"
+  - "https://raw.githubusercontent.com/Q3dlaXpoaQ/V2rayN_Clash_Node_Getter/refs/heads/main/APIs/sc0.yaml"
+  - "https://raw.githubusercontent.com/mahdibland/SSAggregator/master/sub/sub_merge_yaml.yml"
+  - "https://raw.githubusercontent.com/chengaopan/AutoMergePublicNodes/master/list.yml"
+  - "https://raw.githubusercontent.com/zhangkaiitugithub/passcro/main/speednodes.yaml"
+  - "https://raw.githubusercontent.com/aiboboxx/v2rayfree/refs/heads/main/README.md"
+  - "https://raw.githubusercontent.com/peasoft/NoMoreWalls/master/snippets/nodes.meta.yml"
+  - "https://raw.githubusercontent.com/Ruk1ng001/freeSub/main/clash.yaml"
+  - "https://raw.githubusercontent.com/SoliSpirit/v2ray-configs/main/all_configs.txt"
+  - "https://raw.githubusercontent.com/ripaojiedian/freenode/main/clash"
+  - "https://raw.githubusercontent.com/go4sharing/sub/main/sub.yaml"
+  - "https://raw.githubusercontent.com/actionsfz/v2ray/refs/heads/master/all.yaml"
+  - "https://raw.githubusercontent.com/Pawdroid/Free-servers/refs/heads/main/sub"
+  - "https://raw.githubusercontent.com/acymz/AutoVPN/main/data/V2.txt"
+  - "https://raw.githubusercontent.com/Barabama/FreeNodes/main/nodes/wenode.txt"
+  - "https://raw.githubusercontent.com/Barabama/FreeNodes/main/nodes/v2rayshare.txt"
+  - "https://raw.githubusercontent.com/Barabama/FreeNodes/main/nodes/nodefree.txt"
+  - "https://raw.githubusercontent.com/Barabama/FreeNodes/main/nodes/ndnode.txt"
+  - "https://raw.githubusercontent.com/Barabama/FreeNodes/main/nodes/clashmeta.txt"
+  - "https://raw.githubusercontent.com/xiaoji235/airport-free/main/v2ray.txt"

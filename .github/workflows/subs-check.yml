@@ -1,0 +1,65 @@
+name: subs-check
+
+# 独立跑在 GitHub 免费机器上，不消耗老板 VPS 流量
+# subs-check 是长驻 daemon，这里用 timeout 只让它跑一轮就退出 —— 根治"几天不重启就不更新"
+on:
+  schedule:
+    - cron: "17 */6 * * *"      # 每 6 小时一轮（错开整点，避开机场 0 点重启）
+  workflow_dispatch:            # 允许手动立刻跑一轮
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 下载 subs-check 最新版
+        run: |
+          set -e
+          VER=$(curl -s https://api.github.com/repos/beck-8/subs-check/releases/latest | jq -r .tag_name)
+          echo "latest release: $VER"
+          ASSET=$(curl -s https://api.github.com/repos/beck-8/subs-check/releases/latest \
+            | jq -r '.assets[] | select(.name|test("linux.*amd64")) | .browser_download_url' | head -1)
+          echo "asset: $ASSET"
+          curl -sL -o sc.tar.gz "$ASSET"
+          tar xzf sc.tar.gz
+          BIN=$(find . -type f -name 'subs-check*' -executable | head -1)
+          [ -z "$BIN" ] && BIN=$(find . -type f -name 'subs-check*' | head -1)
+          chmod +x "$BIN"
+          echo "BIN=$BIN" >> "$GITHUB_ENV"
+          "$BIN" -h 2>&1 | head -5 || true
+
+      - name: 注入 Gist 凭据（不入库）
+        run: |
+          python3 - <<'PY'
+          import re,os
+          p="config.yaml"; s=open(p,encoding="utf-8").read()
+          s=re.sub(r'github-gist-id:\s*""', 'github-gist-id: "%s"'%os.environ["GIST_ID"], s)
+          s=re.sub(r'github-gist-token:\s*""', 'github-gist-token: "%s"'%os.environ["GIST_TOKEN"], s)
+          open(p,"w",encoding="utf-8").write(s)
+          print("gist id 已注入:", os.environ["GIST_ID"][:8]+"...")
+          PY
+        env:
+          GIST_ID: ${{ secrets.GIST_ID }}
+          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
+
+      - name: 跑一轮检测（跑完即退出）
+        run: |
+          timeout --signal=TERM 1800 "$BIN" -f config.yaml || echo "本轮结束/超时退出 code=$?"
+          echo "--- output ---"; ls -la output/ 2>/dev/null || true
+          for f in output/all.yaml output/base64.txt; do
+            [ -f "$f" ] && echo "$f: $(grep -c '^  - ' "$f" 2>/dev/null || wc -l < "$f") 行"
+          done
+
+      - name: 备份本轮输出到 Actions 制品（便于排查）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nodes-${{ github.run_number }}
+          path: output/
+          retention-days: 3
+          if-no-files-found: ignore
