@@ -35,7 +35,10 @@ jobs:
           curl -sSL --retry 3 -o sc.tar.gz "$ASSET"
           ls -la sc.tar.gz
           tar xzf sc.tar.gz
-          BIN=$(find . -type f -name 'subs-check*' ! -name '*.gz' | head -1)
+          BIN=$(find . -path ./.github -prune -o -type f -name 'subs-check' -print | head -1)
+          if [ -z "$BIN" ]; then
+            BIN=$(find . -path ./.github -prune -o -type f -name 'subs-check*' ! -name '*.gz' ! -name '*.yml' -print | head -1)
+          fi
           echo "bin=$BIN"
           chmod +x "$BIN"
           echo "BIN=$BIN" >> "$GITHUB_ENV"
