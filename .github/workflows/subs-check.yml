@@ -13,7 +13,7 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 55
     env:
       GH_TOK: ${{ secrets.GITHUB_TOKEN }}
       FALLBACK_VER: v1.6.5
@@ -49,9 +49,11 @@ jobs:
           import re,os
           p="config.yaml"; s=open(p,encoding="utf-8").read()
           s=re.sub(r'github-gist-id:\s*""', 'github-gist-id: "%s"'%os.environ["GIST_ID"], s)
-          s=re.sub(r'github-gist-token:\s*""', 'github-gist-token: "%s"'%os.environ["GIST_TOKEN"], s)
+          # subs-check 的正确键名是 github-token（写成 github-gist-token 会报"Gist配置不完整"）
+          s=re.sub(r'github-token:\s*""', 'github-token: "%s"'%os.environ["GIST_TOKEN"], s)
           open(p,"w",encoding="utf-8").write(s)
           print("gist id 已注入:", os.environ["GIST_ID"][:8]+"...")
+          print("注入后的 github-* 行:", [l for l in s.splitlines() if l.startswith("github-")])
           PY
         env:
           GIST_ID: ${{ secrets.GIST_ID }}
@@ -59,17 +61,28 @@ jobs:
 
       - name: 跑一轮检测（跑完即退出）
         run: |
-          timeout --signal=TERM 1800 "$BIN" -f config.yaml || echo "本轮结束/超时退出 code=$?"
-          echo "--- output ---"; ls -la output/ 2>/dev/null || true
-          for f in output/all.yaml output/base64.txt; do
-            [ -f "$f" ] && echo "$f: $(grep -c '^  - ' "$f" 2>/dev/null || wc -l < "$f") 行"
+          "$BIN" -f config.yaml > sc.log 2>&1 &
+          PID=$!
+          DONE=0
+          for i in $(seq 1 290); do
+            sleep 10
+            if grep -qE "检测完成" sc.log; then DONE=1; echo "本轮完成，用时约 $((i*10))s"; break; fi
+            if ! kill -0 $PID 2>/dev/null; then echo "进程自行退出"; DONE=1; break; fi
           done
+          [ "$DONE" = "0" ] && echo "约4800s 未完成，强制停止"
+          sleep 8
+          kill $PID 2>/dev/null || true
+          echo "--- 关键统计 ---"
+          grep -E "合并去重后节点数量|存活节点数量|流媒体检测通过|可用节点数量|消耗流量|保存成功|Gist|达到成功数量限制" sc.log | tail -20 || true
+          echo "--- 报错 ---"
+          grep -iE "level=FATAL|level=ERROR" sc.log | tail -8 || true
+          echo "--- output ---"; ls -la output/ 2>/dev/null || true
 
       - name: 备份本轮输出到 Actions 制品（便于排查）
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: nodes-${{ github.run_number }}
+          name: nodes-run
           path: output/
           retention-days: 3
           if-no-files-found: ignore
