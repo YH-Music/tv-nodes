@@ -60,7 +60,7 @@ sub-store-port: ""
 # 保存方法：secret Gist（token 由 Actions 运行时注入，不入库）
 save-method: gist
 github-gist-id: ""
-github-gist-token: ""
+github-token: ""
 
 sub-urls:
   - "https://raw.githubusercontent.com/firefoxmmx2/v2rayshare_subcription/main/subscription/clash_sub.yaml"
