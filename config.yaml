@@ -10,8 +10,8 @@ shuffle-test-order: true
 # Actions 上跑完一轮就被 kill，这个值只是防止它自己无限循环
 check-interval: 1440
 
-# 最多保留多少个可用节点
-success-limit: 150
+# 最多保留多少个可用节点（0=不限，让流水线跑完全部，避免提前收工漏掉 HK/TW）
+success-limit: 0
 
 timeout: 5000
 alive-test-url: http://gstatic.com/generate_204
@@ -28,7 +28,17 @@ node-prefix: ""
 
 # 按 IP 归属地重命名后，App 端按名字里的国家/地区分组（HK/TW/SG/US/JP）
 # 这里不按地区过滤，全保留，让 App 端分流
-filter: []
+# 按地区过滤：只保留亚洲节点做测速（测速最费流量，欧美节点对看港台频道没用）
+# 过滤发生在"测活+按IP归属地重命名"之后，所以这里匹配的是 IP 真实归属地标签
+filter:
+  - "HK|香港|Hong Kong"
+  - "TW|台湾|Taiwan"
+  - "MO|澳门|Macau"
+  - "SG|新加坡|Singapore"
+  - "JP|日本|Japan"
+  - "KR|韩国|Korea"
+  - "MY|马来西亚|Malaysia"
+  - "US|美国|America"
 
 # 流媒体检测：注意 subs-check 只检测 iprisk/tiktok/youtube/netflix/disney/openai/gemini/claude/spotify
 # 它【不检测 TVB/ViuTV】——港台频道靠 rename-node 出来的 HK/TW 地区标签做地理分流
