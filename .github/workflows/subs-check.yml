@@ -78,6 +78,34 @@ jobs:
           grep -iE "level=FATAL|level=ERROR" sc.log | tail -8 || true
           echo "--- output ---"; ls -la output/ 2>/dev/null || true
 
+      - name: 同步节点池到 tv-sources 双仓库（nodes.b64，App 直连拉取用）
+        run: |
+          set -e
+          SRC=$(ls output/*.yaml output/*.yml 2>/dev/null | head -1)
+          if [ -z "$SRC" ]; then echo "本轮没有输出文件，跳过同步"; exit 0; fi
+          echo "节点池源文件: $SRC ($(wc -c < "$SRC") bytes)"
+          base64 -w0 "$SRC" > nodes.b64
+          # GitHub 镜像（GH_REPO_TOKEN = 有 repo 写权限的 GitHub token）
+          git clone -q --depth 1 "https://x-access-token:${GH_PUSH_TOKEN}@github.com/YH-Music/tv-sources.git" ghdst
+          cp nodes.b64 ghdst/nodes.b64
+          cd ghdst
+          git config user.name "tv-nodes-bot" && git config user.email "bot@localhost"
+          git add nodes.b64
+          git commit -q -m "nodes.b64 自动同步 $(date -u +%F\ %R)UTC" || echo "GitHub 无变化"
+          git push -q origin main && echo "GitHub 推送完成"
+          cd ..
+          # Gitee 镜像（国内直连可拉；GITEE_TOKEN = Gitee 私人令牌 projects 权限）
+          git clone -q --depth 1 "https://yh-music:${GITEE_TOKEN}@gitee.com/yh-music/tv-sources.git" gtdst
+          cp nodes.b64 gtdst/nodes.b64
+          cd gtdst
+          git config user.name "tv-nodes-bot" && git config user.email "bot@localhost"
+          git add nodes.b64
+          git commit -q -m "nodes.b64 自动同步 $(date -u +%F\ %R)UTC" || echo "Gitee 无变化"
+          git push -q origin main && echo "Gitee 推送完成"
+        env:
+          GH_PUSH_TOKEN: ${{ secrets.GH_REPO_TOKEN }}
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+
       - name: 备份本轮输出到 Actions 制品（便于排查）
         if: always()
         uses: actions/upload-artifact@v4
